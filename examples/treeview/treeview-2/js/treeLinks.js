@@ -1,42 +1,40 @@
 /*
-*   This content is licensed according to the W3C Software License at
-*   https://www.w3.org/Consortium/Legal/2015/copyright-software-and-document
-*
-*   File:   TreeLinks.js
-*
-*   Desc:   Tree widget that implements ARIA Authoring Practices
-*           for a tree being used as a file viewer
-*
-*   Author: Jon Gunderson, Ku Ja Eun and Nicholas Hoyt
-*/
+ *   This content is licensed according to the W3C Software License at
+ *   https://www.w3.org/Consortium/Legal/2015/copyright-software-and-document
+ *
+ *   File:   TreeLinks.js
+ *
+ *   Desc:   Tree widget that implements ARIA Authoring Practices
+ *           for a tree being used as a file viewer
+ */
+
+'use strict';
 
 /**
  * ARIA Treeview example
  * @function onload
- * @desc  after page has loaded initializ all treeitems based on the role=treeitem
+ * @desc  after page has loaded initialize all treeitems based on the role=treeitem
  */
 
 window.addEventListener('load', function () {
-
   var trees = document.querySelectorAll('[role="tree"]');
 
   for (var i = 0; i < trees.length; i++) {
     var t = new TreeLinks(trees[i]);
     t.init();
   }
-
 });
 
 /*
-*   @constructor
-*
-*   @desc
-*       Tree item object for representing the state and user interactions for a
-*       tree widget
-*
-*   @param node
-*       An element with the role=tree attribute
-*/
+ *   @constructor
+ *
+ *   @desc
+ *       Tree item object for representing the state and user interactions for a
+ *       tree widget
+ *
+ *   @param node
+ *       An element with the role=tree attribute
+ */
 
 var TreeLinks = function (node) {
   // Check whether node is a DOM element
@@ -51,19 +49,19 @@ var TreeLinks = function (node) {
 
   this.firstTreeitem = null;
   this.lastTreeitem = null;
-
 };
 
 TreeLinks.prototype.init = function () {
-
-  function findTreeitems (node, tree, group) {
-
+  function findTreeitems(node, tree, group) {
     var elem = node.firstElementChild;
     var ti = group;
 
     while (elem) {
-
-      if ((elem.tagName.toLowerCase() === 'li' && elem.firstElementChild.tagName.toLowerCase() === 'span') || elem.tagName.toLowerCase() === 'a') {
+      if (
+        (elem.tagName.toLowerCase() === 'li' &&
+          elem.firstElementChild.tagName.toLowerCase() === 'span') ||
+        elem.tagName.toLowerCase() === 'a'
+      ) {
         ti = new TreeitemLink(elem, tree, group);
         ti.init();
         tree.treeitems.push(ti);
@@ -88,30 +86,25 @@ TreeLinks.prototype.init = function () {
   this.updateVisibleTreeitems();
 
   this.firstTreeitem.domNode.tabIndex = 0;
-
 };
 
 TreeLinks.prototype.setFocusToItem = function (treeitem) {
-
   for (var i = 0; i < this.treeitems.length; i++) {
     var ti = this.treeitems[i];
 
     if (ti === treeitem) {
       ti.domNode.tabIndex = 0;
       ti.domNode.focus();
-    }
-    else {
+    } else {
       ti.domNode.tabIndex = -1;
     }
   }
-
 };
 
 TreeLinks.prototype.setFocusToNextItem = function (currentItem) {
-
   var nextItem = false;
 
-  for (var i = (this.treeitems.length - 1); i >= 0; i--) {
+  for (var i = this.treeitems.length - 1; i >= 0; i--) {
     var ti = this.treeitems[i];
     if (ti === currentItem) {
       break;
@@ -124,11 +117,9 @@ TreeLinks.prototype.setFocusToNextItem = function (currentItem) {
   if (nextItem) {
     this.setFocusToItem(nextItem);
   }
-
 };
 
 TreeLinks.prototype.setFocusToPreviousItem = function (currentItem) {
-
   var prevItem = false;
 
   for (var i = 0; i < this.treeitems.length; i++) {
@@ -146,42 +137,43 @@ TreeLinks.prototype.setFocusToPreviousItem = function (currentItem) {
   }
 };
 
+TreeLinks.prototype.setFocusToParentItem = function (currentItem) {
+  if (currentItem.groupTreeitem) {
+    this.setFocusToItem(currentItem.groupTreeitem);
+  }
+};
+
 TreeLinks.prototype.setFocusToFirstItem = function () {
-    this.setFocusToItem(this.firstTreeitem);
-  };
+  this.setFocusToItem(this.firstTreeitem);
+};
 
 TreeLinks.prototype.setFocusToLastItem = function () {
-    this.setFocusToItem(this.lastTreeitem);
-  };
+  this.setFocusToItem(this.lastTreeitem);
+};
 
 TreeLinks.prototype.expandTreeitem = function (currentItem) {
-
   if (currentItem.isExpandable) {
     currentItem.domNode.setAttribute('aria-expanded', true);
     this.updateVisibleTreeitems();
   }
-
 };
 
 TreeLinks.prototype.expandAllSiblingItems = function (currentItem) {
   for (var i = 0; i < this.treeitems.length; i++) {
     var ti = this.treeitems[i];
 
-    if ((ti.groupTreeitem === currentItem.groupTreeitem) && ti.isExpandable) {
+    if (ti.groupTreeitem === currentItem.groupTreeitem && ti.isExpandable) {
       this.expandTreeitem(ti);
     }
   }
-
 };
 
 TreeLinks.prototype.collapseTreeitem = function (currentItem) {
-
   var groupTreeitem = false;
 
   if (currentItem.isExpanded()) {
     groupTreeitem = currentItem;
-  }
-  else {
+  } else {
     groupTreeitem = currentItem.groupTreeitem;
   }
 
@@ -190,11 +182,9 @@ TreeLinks.prototype.collapseTreeitem = function (currentItem) {
     this.updateVisibleTreeitems();
     this.setFocusToItem(groupTreeitem);
   }
-
 };
 
 TreeLinks.prototype.updateVisibleTreeitems = function () {
-
   this.firstTreeitem = this.treeitems[0];
 
   for (var i = 0; i < this.treeitems.length; i++) {
@@ -204,8 +194,7 @@ TreeLinks.prototype.updateVisibleTreeitems = function () {
 
     ti.isVisible = true;
 
-    while (parent && (parent !== this.domNode)) {
-
+    while (parent && parent !== this.domNode) {
       if (parent.getAttribute('aria-expanded') == 'false') {
         ti.isVisible = false;
       }
@@ -216,11 +205,12 @@ TreeLinks.prototype.updateVisibleTreeitems = function () {
       this.lastTreeitem = ti;
     }
   }
-
 };
 
 TreeLinks.prototype.setFocusByFirstCharacter = function (currentItem, char) {
-  var start, index, char = char.toLowerCase();
+  var start, index;
+
+  char = char.toLowerCase();
 
   // Get start index for search based on position of currentItem
   start = this.treeitems.indexOf(currentItem) + 1;

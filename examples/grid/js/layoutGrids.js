@@ -1,3 +1,12 @@
+/*
+ *   This content is licensed according to the W3C Software License at
+ *   https://www.w3.org/Consortium/Legal/2015/copyright-software-and-document
+ */
+
+'use strict';
+
+var aria = aria || {};
+
 /**
  * ARIA Grid Examples
  * @function onload
@@ -5,14 +14,13 @@
  */
 
 window.addEventListener('load', function () {
+  // Setup Example 1
   var ex1 = document.getElementById('ex1');
   var ex1Grid = new aria.Grid(ex1.querySelector('[role="grid"]'));
 
+  // Setup Example 2
   var ex2 = document.getElementById('ex2');
   var ex2Grid = new aria.Grid(ex2.querySelector('[role="grid"]'));
-
-  var ex3 = document.getElementById('ex3');
-  var ex3Grid = new aria.Grid(ex3.querySelector('[role="grid"]'));
 
   var pillList = new PillList(
     ex2Grid,
@@ -20,11 +28,56 @@ window.addEventListener('load', function () {
     document.getElementById('add-recipient-button'),
     document.getElementById('form-action-text')
   );
+
+  // Setup Example 3
+  var ex3 = document.getElementById('ex3');
+  var ex3Grid = new aria.Grid(ex3.querySelector('[role="grid"]'));
+  var startIndexText = document.getElementById('ex3_start_index');
+  var endIndexText = document.getElementById('ex3_end_index');
+  var previousButton = document.getElementById('ex3_pageup_button');
+  var nextButton = document.getElementById('ex3_pagedown_button');
+  ex3Grid.setPaginationChangeHandler(function (startIndex, endIndex) {
+    startIndexText.innerText = startIndex + 1;
+    endIndexText.innerText = endIndex + 1;
+    if (startIndex <= 0) {
+      previousButton.setAttribute('disabled', 'true');
+    } else {
+      previousButton.removeAttribute('disabled');
+    }
+    if (endIndex >= 18) {
+      nextButton.setAttribute('disabled', 'true');
+    } else {
+      nextButton.removeAttribute('disabled');
+    }
+  });
+  previousButton.addEventListener('click', ex3Grid.movePageUp.bind(ex3Grid));
+  nextButton.addEventListener('click', ex3Grid.movePageDown.bind(ex3Grid));
+
+  // Setup NUX; activates when the first grid cell is focused
+  var gridNUX = document.getElementById('grid-nux');
+  var firstGridCell = document.querySelector('#ex1 [tabindex="0"]');
+  var NUXclose = document.getElementById('close-nux-button');
+  var closeNUX = function () {
+    aria.Utils.addClass(gridNUX, 'hidden');
+    firstGridCell.focus();
+  };
+  var setupInstructions = function () {
+    firstGridCell.removeEventListener('focus', setupInstructions);
+    aria.Utils.removeClass(gridNUX, 'hidden');
+
+    NUXclose.addEventListener('click', closeNUX);
+    NUXclose.addEventListener('keyup', function (event) {
+      if (event.which === aria.KeyCode.RETURN) {
+        closeNUX();
+      }
+    });
+  };
+  firstGridCell.addEventListener('focus', setupInstructions);
 });
 
-function PillList (grid, input, submitButton, formUpdateText) {
+function PillList(grid, input, submitButton, formUpdateText) {
   // Hardcoded to work for example 2
-  this.pillIDs = {length: 2, 1: true, 2: true};
+  this.pillIDs = { length: 2, 1: true, 2: true };
   this.nextPillID = 3;
   this.grid = grid;
   this.input = input;
@@ -34,8 +87,11 @@ function PillList (grid, input, submitButton, formUpdateText) {
   this.input.addEventListener('keydown', this.checkSubmitItem.bind(this));
   this.submitButton.addEventListener('click', this.submitItemForm.bind(this));
   this.grid.gridNode.addEventListener('click', this.checkRemovePill.bind(this));
-  this.grid.gridNode.addEventListener('keydown', this.checkRemovePill.bind(this));
-};
+  this.grid.gridNode.addEventListener(
+    'keydown',
+    this.checkRemovePill.bind(this)
+  );
+}
 
 PillList.prototype.checkSubmitItem = function (event) {
   var key = event.which || event.keyCode;
@@ -49,8 +105,7 @@ PillList.prototype.getRecipientsString = function () {
   var recipientCount = this.pillIDs.length;
   if (recipientCount === 1) {
     return '1 recipient total.';
-  }
-  else {
+  } else {
     return recipientCount + ' recipients total.';
   }
 };
@@ -60,7 +115,8 @@ PillList.prototype.submitItemForm = function () {
   this.addPillItem(newItem);
   this.input.value = '';
   this.input.focus();
-  this.formUpdateText.innerText = newItem + ' added. ' + this.getRecipientsString();
+  this.formUpdateText.innerText =
+    newItem + ' added. ' + this.getRecipientsString();
 };
 
 PillList.prototype.addPillItem = function (recipientName) {
@@ -76,17 +132,25 @@ PillList.prototype.addPillItem = function (recipientName) {
   newPillItem.className = 'pill-item';
 
   newPillItem.innerHTML =
-    '<span role="gridcell">'
-      + '<a id="r' + id + '" class="pill-name" tabindex="-1" href="#">'
-        + recipientName
-      + '</a>'
-    + '</span>'
-    + '<span role="gridcell">'
-      + '<span id="rb' + id + '" class="pill-remove" tabindex="-1" role="button"'
-        + 'aria-label="Remove" aria-labelledby="rb' + id + ' r' + id + '">'
-        + 'X'
-      + '</span>'
-    + '</span>';
+    '<span role="gridcell">' +
+    '<a id="r' +
+    id +
+    '" class="pill-name" tabindex="-1" href="#">' +
+    recipientName +
+    '</a>' +
+    '</span>' +
+    '<span role="gridcell">' +
+    '<span id="rb' +
+    id +
+    '" class="pill-remove" tabindex="-1" role="button"' +
+    'aria-label="Remove" aria-labelledby="rb' +
+    id +
+    ' r' +
+    id +
+    '">' +
+    'X' +
+    '</span>' +
+    '</span>';
 
   this.grid.gridNode.append(newPillItem);
   this.grid.setupFocusGrid();
@@ -104,12 +168,14 @@ PillList.prototype.addPillItem = function (recipientName) {
 
 PillList.prototype.checkRemovePill = function (event) {
   var pillItem, pillID, pillName;
-  var isClickEvent = (event.type === 'click');
+  var isClickEvent = event.type === 'click';
   var key = event.which || event.keyCode;
 
-  if (!isClickEvent
-      && key !== aria.KeyCode.RETURN
-      && key !== aria.KeyCode.SPACE) {
+  if (
+    !isClickEvent &&
+    key !== aria.KeyCode.RETURN &&
+    key !== aria.KeyCode.SPACE
+  ) {
     return;
   }
 
@@ -117,14 +183,14 @@ PillList.prototype.checkRemovePill = function (event) {
     pillItem = event.target.parentNode.parentNode;
     pillID = pillItem.getAttribute('data-id');
     pillName = pillItem.querySelector('.pill-name').innerText;
-  }
-  else {
+  } else {
     return;
   }
 
   delete this.pillIDs[pillID];
   this.pillIDs.length--;
-  this.formUpdateText.innerText = pillName + ' removed. ' + this.getRecipientsString();
+  this.formUpdateText.innerText =
+    pillName + ' removed. ' + this.getRecipientsString();
 
   pillItem.remove();
   this.grid.setupFocusGrid();
@@ -132,8 +198,9 @@ PillList.prototype.checkRemovePill = function (event) {
   if (this.grid.isValidCell(this.grid.focusedRow, this.grid.focusedCol)) {
     // First, try to focus on the next pill
     this.grid.focusCell(this.grid.focusedRow, this.grid.focusedCol);
-  }
-  else if (this.grid.isValidCell(--this.grid.focusedRow, this.grid.focusedCol)) {
+  } else if (
+    this.grid.isValidCell(--this.grid.focusedRow, this.grid.focusedCol)
+  ) {
     // If there is no next pill, try to focus on the previous pill
     this.grid.focusCell(this.grid.focusedRow, this.grid.focusedCol);
   }

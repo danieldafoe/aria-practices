@@ -1,6 +1,9 @@
-/**
- * TODO: Copyright and License stuff goes here
+/*
+ *   This content is licensed according to the W3C Software License at
+ *   https://www.w3.org/Consortium/Legal/2015/copyright-software-and-document
  */
+
+'use strict';
 
 /**
  * @namespace aria
@@ -14,7 +17,7 @@ var aria = aria || {};
 aria.SortType = {
   ASCENDING: 'ascending',
   DESCENDING: 'descending',
-  NONE: 'none'
+  NONE: 'none',
 };
 
 /**
@@ -26,7 +29,7 @@ aria.GridSelector = {
   CELL: 'th, td, [role="gridcell"]',
   SCROLL_ROW: 'tr:not([data-fixed]), [role="row"]',
   SORT_HEADER: 'th[aria-sort]',
-  TABBABLE: '[tabindex="0"]'
+  TABBABLE: '[tabindex="0"]',
 };
 
 /**
@@ -34,7 +37,7 @@ aria.GridSelector = {
  *  CSS Class names
  */
 aria.CSSClass = {
-  HIDDEN: 'hidden'
+  HIDDEN: 'hidden',
 };
 
 /**
@@ -59,13 +62,25 @@ aria.Grid = function (gridNode) {
   this.shouldRestructure = this.gridNode.hasAttribute('data-restructure');
   this.topIndex = 0;
 
+  this.keysIndicator = document.getElementById('arrow-keys-indicator');
+
+  aria.Utils.bindMethods(
+    this,
+    'checkFocusChange',
+    'checkPageChange',
+    'checkRestructureGrid',
+    'delegateButtonHandler',
+    'focusClickedCell',
+    'restructureGrid',
+    'showKeysIndicator',
+    'hideKeysIndicator'
+  );
   this.setupFocusGrid();
   this.setFocusPointer(0, 0);
 
   if (this.paginationEnabled) {
     this.setupPagination();
-  }
-  else {
+  } else {
     this.perPage = this.grid.length;
   }
 
@@ -81,31 +96,30 @@ aria.Grid.prototype.setupFocusGrid = function () {
 
   Array.prototype.forEach.call(
     this.gridNode.querySelectorAll(aria.GridSelector.ROW),
-    (function (row) {
+    function (row) {
       var rowCells = [];
 
       Array.prototype.forEach.call(
         row.querySelectorAll(aria.GridSelector.CELL),
-        (function (cell) {
+        function (cell) {
           var focusableSelector = '[tabindex]';
 
           if (aria.Utils.matches(cell, focusableSelector)) {
             rowCells.push(cell);
-          }
-          else {
+          } else {
             var focusableCell = cell.querySelector(focusableSelector);
 
             if (focusableCell) {
               rowCells.push(focusableCell);
             }
           }
-        }).bind(this)
+        }.bind(this)
       );
 
       if (rowCells.length) {
         this.grid.push(rowCells);
       }
-    }).bind(this)
+    }.bind(this)
   );
 
   if (this.paginationEnabled) {
@@ -139,12 +153,18 @@ aria.Grid.prototype.setFocusPointer = function (row, col) {
     this.grid[this.focusedRow][this.focusedCol].setAttribute('tabindex', -1);
   }
 
+  this.grid[row][col].removeEventListener('focus', this.showKeysIndicator);
+  this.grid[row][col].removeEventListener('blur', this.hideKeysIndicator);
+
   // Disable navigation if focused on an input
   this.navigationDisabled = aria.Utils.matches(this.grid[row][col], 'input');
 
   this.grid[row][col].setAttribute('tabindex', 0);
   this.focusedRow = row;
   this.focusedCol = col;
+
+  this.grid[row][col].addEventListener('focus', this.showKeysIndicator);
+  this.grid[row][col].addEventListener('blur', this.hideKeysIndicator);
 
   return true;
 };
@@ -161,14 +181,14 @@ aria.Grid.prototype.setFocusPointer = function (row, col) {
  */
 aria.Grid.prototype.isValidCell = function (row, col) {
   return (
-    !isNaN(row)
-    && !isNaN(col)
-    && row >= 0
-    && col >= 0
-    && this.grid
-    && this.grid.length
-    && row < this.grid.length
-    && col < this.grid[row].length
+    !isNaN(row) &&
+    !isNaN(col) &&
+    row >= 0 &&
+    col >= 0 &&
+    this.grid &&
+    this.grid.length &&
+    row < this.grid.length &&
+    col < this.grid[row].length
   );
 };
 
@@ -183,8 +203,9 @@ aria.Grid.prototype.isValidCell = function (row, col) {
  *  Returns whether or not the cell has been hidden.
  */
 aria.Grid.prototype.isHidden = function (row, col) {
-  var cell = this.gridNode.querySelectorAll(aria.GridSelector.ROW)[row]
-                  .querySelectorAll(aria.GridSelector.CELL)[col];
+  var cell = this.gridNode
+    .querySelectorAll(aria.GridSelector.ROW)
+    [row].querySelectorAll(aria.GridSelector.CELL)[col];
   return aria.Utils.hasClass(cell, aria.CSSClass.HIDDEN);
 };
 
@@ -193,18 +214,27 @@ aria.Grid.prototype.isHidden = function (row, col) {
  *  Clean up grid events
  */
 aria.Grid.prototype.clearEvents = function () {
-  this.gridNode.removeEventListener('keydown', this.checkFocusChange.bind(this));
-  this.gridNode.removeEventListener('keydown', this.delegateButtonHandler.bind(this));
-  this.gridNode.removeEventListener('click', this.focusClickedCell.bind(this));
-  this.gridNode.removeEventListener('click', this.delegateButtonHandler.bind(this));
+  this.gridNode.removeEventListener('keydown', this.checkFocusChange);
+  this.gridNode.removeEventListener('keydown', this.delegateButtonHandler);
+  this.gridNode.removeEventListener('click', this.focusClickedCell);
+  this.gridNode.removeEventListener('click', this.delegateButtonHandler);
 
   if (this.paginationEnabled) {
-    this.gridNode.removeEventListener('keydown', this.checkPageChange.bind(this));
+    this.gridNode.removeEventListener('keydown', this.checkPageChange);
   }
 
   if (this.shouldRestructure) {
-    window.removeEventListener('resize', this.checkRestructureGrid.bind(this));
+    window.removeEventListener('resize', this.checkRestructureGrid);
   }
+
+  this.grid[this.focusedRow][this.focusedCol].removeEventListener(
+    'focus',
+    this.showKeysIndicator
+  );
+  this.grid[this.focusedRow][this.focusedCol].removeEventListener(
+    'blur',
+    this.hideKeysIndicator
+  );
 };
 
 /**
@@ -214,17 +244,17 @@ aria.Grid.prototype.clearEvents = function () {
 aria.Grid.prototype.registerEvents = function () {
   this.clearEvents();
 
-  this.gridNode.addEventListener('keydown', this.checkFocusChange.bind(this));
-  this.gridNode.addEventListener('keydown', this.delegateButtonHandler.bind(this));
-  this.gridNode.addEventListener('click', this.focusClickedCell.bind(this));
-  this.gridNode.addEventListener('click', this.delegateButtonHandler.bind(this));
+  this.gridNode.addEventListener('keydown', this.checkFocusChange);
+  this.gridNode.addEventListener('keydown', this.delegateButtonHandler);
+  this.gridNode.addEventListener('click', this.focusClickedCell);
+  this.gridNode.addEventListener('click', this.delegateButtonHandler);
 
   if (this.paginationEnabled) {
-    this.gridNode.addEventListener('keydown', this.checkPageChange.bind(this));
+    this.gridNode.addEventListener('keydown', this.checkPageChange);
   }
 
   if (this.shouldRestructure) {
-    window.addEventListener('resize', this.checkRestructureGrid.bind(this));
+    window.addEventListener('resize', this.checkRestructureGrid);
   }
 };
 
@@ -244,6 +274,21 @@ aria.Grid.prototype.focusCell = function (row, col) {
   }
 };
 
+aria.Grid.prototype.showKeysIndicator = function () {
+  if (this.keysIndicator) {
+    aria.Utils.removeClass(this.keysIndicator, 'hidden');
+  }
+};
+
+aria.Grid.prototype.hideKeysIndicator = function () {
+  if (
+    this.keysIndicator &&
+    this.grid[this.focusedRow][this.focusedCol].tabIndex === 0
+  ) {
+    aria.Utils.addClass(this.keysIndicator, 'hidden');
+  }
+};
+
 /**
  * @desc
  *  Triggered on keydown. Checks if an arrow key was pressed, and (if possible)
@@ -256,6 +301,8 @@ aria.Grid.prototype.checkFocusChange = function (event) {
   if (!event || this.navigationDisabled) {
     return;
   }
+
+  this.findFocusedItem(event.target);
 
   var key = event.which || event.keyCode;
   var rowCaret = this.focusedRow;
@@ -315,6 +362,33 @@ aria.Grid.prototype.checkFocusChange = function (event) {
 
 /**
  * @desc
+ *  Reset focused row and col if it doesn't match focusedRow and focusedCol
+ *
+ * @param focusedTarget
+ *  Element that is currently focused by browser
+ */
+aria.Grid.prototype.findFocusedItem = function (focusedTarget) {
+  var focusedCell = this.grid[this.focusedRow][this.focusedCol];
+
+  if (focusedCell === focusedTarget || focusedCell.contains(focusedTarget)) {
+    return;
+  }
+
+  for (var i = 0; i < this.grid.length; i++) {
+    for (var j = 0; j < this.grid[i].length; j++) {
+      if (
+        this.grid[i][j] === focusedTarget ||
+        this.grid[i][j].contains(focusedTarget)
+      ) {
+        this.setFocusPointer(i, j);
+        return;
+      }
+    }
+  }
+};
+
+/**
+ * @desc
  *  Triggered on click. Finds the cell that was clicked on and focuses on it.
  *
  * @param event
@@ -350,46 +424,32 @@ aria.Grid.prototype.focusClickedCell = function (event) {
 aria.Grid.prototype.delegateButtonHandler = function (event) {
   var key = event.which || event.keyCode;
   var target = event.target;
-  var isClickEvent = (event.type === 'click');
+  var isClickEvent = event.type === 'click';
 
   if (!target) {
     return;
   }
 
   if (
-    target.parentNode
-    && target.parentNode.matches('th[aria-sort]')
-    && (
-      isClickEvent
-      || key === aria.KeyCode.SPACE
-      || key === aria.KeyCode.RETURN
-    )
+    target.parentNode &&
+    target.parentNode.matches('th[aria-sort]') &&
+    (isClickEvent || key === aria.KeyCode.SPACE || key === aria.KeyCode.RETURN)
   ) {
     event.preventDefault();
     this.handleSort(target.parentNode);
   }
 
   if (
-    aria.Utils.matches(target, '.editable-text, .edit-text-button')
-    && (
-      isClickEvent
-      || key === aria.KeyCode.RETURN
-    )
+    aria.Utils.matches(target, '.editable-text, .edit-text-button') &&
+    (isClickEvent || key === aria.KeyCode.RETURN)
   ) {
     event.preventDefault();
-    this.toggleEditMode(
-      this.findClosest(target, '.editable-text'),
-      true,
-      true
-    );
+    this.toggleEditMode(this.findClosest(target, '.editable-text'), true, true);
   }
 
   if (
-    aria.Utils.matches(target, '.edit-text-input')
-    && (
-      key === aria.KeyCode.RETURN
-      || key === aria.KeyCode.ESC
-    )
+    aria.Utils.matches(target, '.edit-text-input') &&
+    (key === aria.KeyCode.RETURN || key === aria.KeyCode.ESC)
   ) {
     event.preventDefault();
     this.toggleEditMode(
@@ -422,8 +482,7 @@ aria.Grid.prototype.toggleEditMode = function (editCell, toggleOn, updateText) {
 
   if (toggleOn) {
     onNode.value = offNode.innerText;
-  }
-  else if (updateText) {
+  } else if (updateText) {
     onNode.innerText = offNode.value;
   }
 
@@ -454,21 +513,19 @@ aria.Grid.prototype.handleSort = function (headerNode) {
 
   if (sortType === aria.SortType.ASCENDING) {
     sortType = aria.SortType.DESCENDING;
-  }
-  else {
+  } else {
     sortType = aria.SortType.ASCENDING;
   }
 
   var comparator = function (row1, row2) {
     var row1Text = row1.children[columnIndex].innerText;
     var row2Text = row2.children[columnIndex].innerText;
-    var row1Value = parseInt(row1Text.replace(/[^0-9\.]+/g, ''));
-    var row2Value = parseInt(row2Text.replace(/[^0-9\.]+/g, ''));
+    var row1Value = parseInt(row1Text.replace(/[^0-9.]+/g, ''));
+    var row2Value = parseInt(row2Text.replace(/[^0-9.]+/g, ''));
 
     if (sortType === aria.SortType.ASCENDING) {
       return row1Value - row2Value;
-    }
-    else {
+    } else {
       return row2Value - row1Value;
     }
   };
@@ -500,9 +557,11 @@ aria.Grid.prototype.sortRows = function (compareFn) {
 
   dataRows.sort(compareFn);
 
-  dataRows.forEach((function (row) {
-    rowWrapper.appendChild(row);
-  }).bind(this));
+  dataRows.forEach(
+    function (row) {
+      rowWrapper.appendChild(row);
+    }.bind(this)
+  );
 };
 
 /**
@@ -519,7 +578,6 @@ aria.Grid.prototype.setupIndices = function () {
     for (var col = 0; col < cols.length; col++) {
       cols[col].setAttribute('aria-colindex', col + 1);
     }
-
   }
 };
 
@@ -529,8 +587,13 @@ aria.Grid.prototype.setupIndices = function () {
  *  accordingly.
  */
 aria.Grid.prototype.setupPagination = function () {
+  this.onPaginationChange = this.onPaginationChange || function () {};
   this.perPage = parseInt(this.gridNode.getAttribute('data-per-page'));
   this.showFromRow(0, true);
+};
+
+aria.Grid.prototype.setPaginationChangeHandler = function (onPaginationChange) {
+  this.onPaginationChange = onPaginationChange;
 };
 
 /**
@@ -546,22 +609,26 @@ aria.Grid.prototype.checkPageChange = function (event) {
   }
 
   var key = event.which || event.keyCode;
-  var startIndex;
 
-  if (key === aria.KeyCode.PAGE_UP || key === aria.KeyCode.PAGE_DOWN) {
+  if (key === aria.KeyCode.PAGE_UP) {
     event.preventDefault();
-
-    if (key === aria.KeyCode.PAGE_UP) {
-      startIndex = Math.max(this.perPage - 1, this.topIndex);
-      this.showFromRow(startIndex, false);
-    }
-    else {
-      startIndex = this.topIndex + this.perPage - 1;
-      this.showFromRow(startIndex, true);
-    }
-
-    this.focusCell(startIndex, this.focusedCol);
+    this.movePageUp();
+  } else if (key === aria.KeyCode.PAGE_DOWN) {
+    event.preventDefault();
+    this.movePageDown();
   }
+};
+
+aria.Grid.prototype.movePageUp = function () {
+  var startIndex = Math.max(this.perPage - 1, this.topIndex - 1);
+  this.showFromRow(startIndex, false);
+  this.focusCell(startIndex, this.focusedCol);
+};
+
+aria.Grid.prototype.movePageDown = function () {
+  var startIndex = this.topIndex + this.perPage;
+  this.showFromRow(startIndex, true);
+  this.focusCell(startIndex, this.focusedCol);
 };
 
 /**
@@ -575,26 +642,19 @@ aria.Grid.prototype.checkPageChange = function (event) {
  *  Whether to scroll the new page above or below the row index
  */
 aria.Grid.prototype.showFromRow = function (startIndex, scrollDown) {
-  var dataRows =
-    this.gridNode.querySelectorAll(aria.GridSelector.SCROLL_ROW);
+  var dataRows = this.gridNode.querySelectorAll(aria.GridSelector.SCROLL_ROW);
   var reachedTop = false;
+  var firstIndex = -1;
+  var endIndex = -1;
 
   if (startIndex < 0 || startIndex >= dataRows.length) {
     return;
   }
 
   for (var i = 0; i < dataRows.length; i++) {
-
     if (
-      (
-        scrollDown
-        && i >= startIndex
-        && i < startIndex + this.perPage)
-        ||(
-          !scrollDown
-          && i <= startIndex
-          && i > startIndex - this.perPage
-        )
+      (scrollDown && i >= startIndex && i < startIndex + this.perPage) ||
+      (!scrollDown && i <= startIndex && i > startIndex - this.perPage)
     ) {
       aria.Utils.removeClass(dataRows[i], aria.CSSClass.HIDDEN);
 
@@ -602,11 +662,16 @@ aria.Grid.prototype.showFromRow = function (startIndex, scrollDown) {
         this.topIndex = i;
         reachedTop = true;
       }
-    }
-    else {
+
+      if (firstIndex < 0) {
+        firstIndex = i;
+      }
+      endIndex = i;
+    } else {
       aria.Utils.addClass(dataRows[i], aria.CSSClass.HIDDEN);
     }
   }
+  this.onPaginationChange(firstIndex, endIndex);
 };
 
 /**
@@ -620,7 +685,7 @@ aria.Grid.prototype.checkRestructureGrid = function () {
 
   this.waitingToRestructure = true;
 
-  setTimeout(this.restructureGrid.bind(this), 300);
+  setTimeout(this.restructureGrid, 300);
 };
 
 /**
@@ -635,8 +700,8 @@ aria.Grid.prototype.restructureGrid = function () {
   var currentWidth = 0;
 
   var focusedElement = this.gridNode.querySelector(aria.GridSelector.TABBABLE);
-  var shouldRefocus = (document.activeElement === focusedElement);
-  var focusedIndex = (this.focusedRow * this.grid[0].length + this.focusedCol);
+  var shouldRefocus = document.activeElement === focusedElement;
+  var focusedIndex = this.focusedRow * this.grid[0].length + this.focusedCol;
 
   var newRow = document.createElement('div');
   newRow.setAttribute('role', 'row');
@@ -646,7 +711,7 @@ aria.Grid.prototype.restructureGrid = function () {
   cells.forEach(function (cell, index) {
     var cellWidth = cell.offsetWidth;
 
-    if (currentWidth > 0 && currentWidth >= (gridWidth - cellWidth)) {
+    if (currentWidth > 0 && currentWidth >= gridWidth - cellWidth) {
       newRow = document.createElement('div');
       newRow.setAttribute('role', 'row');
       this.gridNode.append(newRow);
@@ -724,8 +789,7 @@ aria.Grid.prototype.getNextCell = function (
         // jump to the next filled in cell.
         row--;
       }
-    }
-    else if (row >= rowCount || !this.grid[row][col]) {
+    } else if (row >= rowCount || !this.grid[row][col]) {
       row = 0;
       col++;
     }
@@ -734,16 +798,14 @@ aria.Grid.prototype.getNextCell = function (
   if (this.isValidCell(row, col)) {
     return {
       row: row,
-      col: col
+      col: col,
     };
-  }
-  else if (this.isValidCell(currRow, currCol)) {
+  } else if (this.isValidCell(currRow, currCol)) {
     return {
       row: currRow,
-      col: currCol
+      col: currCol,
     };
-  }
-  else {
+  } else {
     return false;
   }
 };
@@ -806,19 +868,15 @@ aria.Grid.prototype.toggleColumn = function (columnIndex, isShown) {
   var cellSelector = '[aria-colindex="' + columnIndex + '"]';
   var columnCells = this.gridNode.querySelectorAll(cellSelector);
 
-  Array.prototype.forEach.call(
-    columnCells,
-    function (cell) {
-      if (isShown) {
-        aria.Utils.removeClass(cell, aria.CSSClass.HIDDEN);
-      }
-      else {
-        aria.Utils.addClass(cell, aria.CSSClass.HIDDEN);
-      }
+  Array.prototype.forEach.call(columnCells, function (cell) {
+    if (isShown) {
+      aria.Utils.removeClass(cell, aria.CSSClass.HIDDEN);
+    } else {
+      aria.Utils.addClass(cell, aria.CSSClass.HIDDEN);
     }
-  );
+  });
 
-  if (!isShown && this.focusedCol === (columnIndex - 1)) {
+  if (!isShown && this.focusedCol === columnIndex - 1) {
     // If focus was set on the hidden column, shift focus to the right
     var nextCell = this.getNextVisibleCell(1, 0);
     if (nextCell) {

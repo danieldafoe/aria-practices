@@ -1,28 +1,27 @@
 /*
-*   This content is licensed according to the W3C Software License at
-*   https://www.w3.org/Consortium/Legal/2015/copyright-software-and-document
-*
-*   File:   Treeitem.js
-*
-*   Desc:   Treeitem widget that implements ARIA Authoring Practices
-*           for a tree being used as a file viewer
-*
-*   Author: Jon Gunderson, Ku Ja Eun and Nicholas Hoyt @ University of Illinois
-*/
+ *   This content is licensed according to the W3C Software License at
+ *   https://www.w3.org/Consortium/Legal/2015/copyright-software-and-document
+ *
+ *   File:   Treeitem.js
+ *
+ *   Desc:   Treeitem widget that implements ARIA Authoring Practices
+ *           for a tree being used as a file viewer
+ */
+
+'use strict';
 
 /*
-*   @constructor
-*
-*   @desc
-*       Treeitem object for representing the state and user interactions for a
-*       treeItem widget
-*
-*   @param node
-*       An element with the role=tree attribute
-*/
+ *   @constructor
+ *
+ *   @desc
+ *       Treeitem object for representing the state and user interactions for a
+ *       treeItem widget
+ *
+ *   @param node
+ *       An element with the role=tree attribute
+ */
 
 var Treeitem = function (node, treeObj, group) {
-
   // Check whether node is a DOM element
   if (typeof node !== 'object') {
     return;
@@ -49,7 +48,6 @@ var Treeitem = function (node, treeObj, group) {
   var elem = node.firstElementChild;
 
   while (elem) {
-
     if (elem.tagName.toLowerCase() == 'ul') {
       elem.setAttribute('role', 'group');
       this.isExpandable = true;
@@ -69,7 +67,7 @@ var Treeitem = function (node, treeObj, group) {
     LEFT: 37,
     UP: 38,
     RIGHT: 39,
-    DOWN: 40
+    DOWN: 40,
   });
 };
 
@@ -92,99 +90,117 @@ Treeitem.prototype.init = function () {
 };
 
 Treeitem.prototype.isExpanded = function () {
-
   if (this.isExpandable) {
     return this.domNode.getAttribute('aria-expanded') === 'true';
   }
 
   return false;
-
 };
 
 /* EVENT HANDLERS */
 
 Treeitem.prototype.handleKeydown = function (event) {
-
   var tgt = event.currentTarget,
-      flag = false,
-      char = event.key,
-      clickEvent;
+    flag = false,
+    char = event.key,
+    clickEvent;
 
-  function isPrintableCharacter (str) {
+  function isPrintableCharacter(str) {
     return str.length === 1 && str.match(/\S/);
   }
 
-  switch (event.keyCode) {
-    case this.keyCode.SPACE:
-    case this.keyCode.RETURN:
-      // Create simulated mouse event to mimic the behavior of ATs
-      // and let the event handler handleClick do the housekeeping.
-      try {
-        clickEvent = new MouseEvent('click', {
-          'view': window,
-          'bubbles': true,
-          'cancelable': true
-        });
+  function printableCharacter(item) {
+    if (char == '*') {
+      item.tree.expandAllSiblingItems(item);
+      flag = true;
+    } else {
+      if (isPrintableCharacter(char)) {
+        item.tree.setFocusByFirstCharacter(item, char);
+        flag = true;
       }
-      catch (err) {
-        if (document.createEvent) {
-          // DOM Level 3 for IE 9+
-          clickEvent = document.createEvent('MouseEvents');
-          clickEvent.initEvent('click', true, true);
+    }
+  }
+
+  if (event.altKey || event.ctrlKey || event.metaKey) {
+    return;
+  }
+
+  if (event.shift) {
+    if (isPrintableCharacter(char)) {
+      printableCharacter(this);
+    }
+  } else {
+    switch (event.keyCode) {
+      case this.keyCode.SPACE:
+      case this.keyCode.RETURN:
+        // Create simulated mouse event to mimic the behavior of ATs
+        // and let the event handler handleClick do the housekeeping.
+        try {
+          clickEvent = new MouseEvent('click', {
+            view: window,
+            bubbles: true,
+            cancelable: true,
+          });
+        } catch (err) {
+          if (document.createEvent) {
+            // DOM Level 3 for IE 9+
+            clickEvent = document.createEvent('MouseEvents');
+            clickEvent.initEvent('click', true, true);
+          }
         }
-      }
-      tgt.dispatchEvent(clickEvent);
-      flag = true;
-      break;
-
-    case this.keyCode.UP:
-      this.tree.setFocusToPreviousItem(this);
-      flag = true;
-      break;
-
-    case this.keyCode.DOWN:
-      this.tree.setFocusToNextItem(this);
-      flag = true;
-      break;
-
-    case this.keyCode.RIGHT:
-      if (this.isExpandable) {
-        this.tree.expandTreeitem(this);
+        tgt.dispatchEvent(clickEvent);
         flag = true;
-      }
-      break;
+        break;
 
-    case this.keyCode.LEFT:
-      if (this.inGroup || this.isExpandable) {
-        this.tree.collapseTreeitem(this);
+      case this.keyCode.UP:
+        this.tree.setFocusToPreviousItem(this);
         flag = true;
-      }
-      break;
+        break;
 
-    case this.keyCode.HOME:
-      this.tree.setFocusToFirstItem();
-      flag = true;
-      break;
-
-    case this.keyCode.END:
-      this.tree.setFocusToLastItem();
-      flag = true;
-      break;
-
-    default:
-
-      if (char == '*') {
-        this.tree.expandAllSiblingItems(this);
+      case this.keyCode.DOWN:
+        this.tree.setFocusToNextItem(this);
         flag = true;
-      }
-      else {
-        if (isPrintableCharacter(char)) {
-          this.tree.setFocusByFirstCharacter(this, char);
+        break;
+
+      case this.keyCode.RIGHT:
+        if (this.isExpandable) {
+          if (this.isExpanded()) {
+            this.tree.setFocusToNextItem(this);
+          } else {
+            this.tree.expandTreeitem(this);
+          }
+        }
+        flag = true;
+        break;
+
+      case this.keyCode.LEFT:
+        if (this.isExpandable && this.isExpanded()) {
+          this.tree.collapseTreeitem(this);
           flag = true;
+        } else {
+          if (this.inGroup) {
+            this.tree.setFocusToParentItem(this);
+            flag = true;
+          }
         }
-      }
+        break;
 
-      break;
+      case this.keyCode.HOME:
+        this.tree.setFocusToFirstItem();
+        flag = true;
+        break;
+
+      case this.keyCode.END:
+        this.tree.setFocusToLastItem();
+        flag = true;
+        break;
+
+      default:
+        if (isPrintableCharacter(char)) {
+          printableCharacter(this);
+        }
+        break;
+    }
   }
 
   if (flag) {
@@ -195,15 +211,13 @@ Treeitem.prototype.handleKeydown = function (event) {
 
 Treeitem.prototype.handleClick = function (event) {
   if (this.isExpandable) {
-    if (this.domNode.getAttribute('aria-expanded') == 'true') {
+    if (this.isExpanded()) {
       this.tree.collapseTreeitem(this);
-    }
-    else {
+    } else {
       this.tree.expandTreeitem(this);
     }
     event.stopPropagation();
-  }
-  else {
+  } else {
     this.tree.setFocusToItem(this);
   }
 };
